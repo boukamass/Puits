@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PLAN DE LOCALISATION ET ITINERAIRE VISITE MHC</title>
+    <title>Itinéraire de visite des plateformes pétrolières — Kouilou</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
@@ -56,7 +57,6 @@
             font-size: 16px;
             font-weight: 700;
             margin: 0;
-            letter-spacing: 0.5px;
         }
         .brand .sub { font-size: 10px; color: #B9C6D3; margin-top: 0; }
         .stats {
@@ -391,11 +391,11 @@
         .leaflet-routing-collapsible { display: none !important; }
         .leaflet-control-attribution { display: none !important; }
 
-        /* Style du contrôle de localisation (aligné à droite) */
+        /* Style du contrôle de localisation */
         .leaflet-control-locate {
             position: absolute !important;
             top: 12px !important;
-            right: 58px !important;
+            right: 12px !important;
             z-index: 1000 !important;
         }
         .leaflet-control-locate .leaflet-bar {
@@ -431,10 +431,10 @@
             50% { box-shadow: 0 0 0 8px rgba(30, 144, 255, 0); }
         }
 
-        /* --- Contrôle de changement de base map (aligné à droite) --- */
+        /* --- Contrôle de changement de base map (collapsible) --- */
         .basemap-control {
             position: absolute !important;
-            top: 12px !important;
+            top: 58px !important;
             right: 12px !important;
             z-index: 1000 !important;
             background: #fff !important;
@@ -544,8 +544,7 @@
             .stats { display: none; }
             .inset-wrap { width: 120px; height: 130px; }
             .inset-label { font-size: 6px; padding: 2px 0; }
-            .leaflet-control-locate { right: 50px !important; }
-            .basemap-control { right: 10px !important; }
+            .basemap-control { top: 56px !important; right: 8px !important; }
         }
     </style>
 </head>
@@ -553,7 +552,7 @@
 <div class="app">
     <header>
         <div class="brand">
-            <h1>PLAN DE LOCALISATION ET ITINERAIRE VISITE MHC</h1>
+            <h1>Itinéraire de visite des plateformes pétrolières</h1>
             <div class="sub">Pointe-Noire → RN1 → Nanga → Kouakouala → Mayombe → Retour</div>
         </div>
         <div class="stats">
@@ -569,6 +568,35 @@
             <div class="inset-wrap">
                 <div class="inset-label">République du Congo · Zone d'étude</div>
                 <div id="inset-map"></div>
+            </div>
+
+            <!-- Sélecteur de base map (collapsible) -->
+            <div class="basemap-control collapsed" id="basemap-control">
+                <button class="basemap-toggle" id="basemap-toggle" title="Changer de fond de carte">
+                    <i class="fas fa-layer-group"></i>
+                </button>
+                <div class="basemap-options" id="basemap-options">
+                    <div class="basemap-option active" data-layer="osm">
+                        <span class="preview osm"></span>
+                        <span class="label">OpenStreetMap</span>
+                        <span class="check"><i class="fas fa-check"></i></span>
+                    </div>
+                    <div class="basemap-option" data-layer="voyager">
+                        <span class="preview voyager"></span>
+                        <span class="label">Voyager (clair)</span>
+                        <span class="check"><i class="fas fa-check"></i></span>
+                    </div>
+                    <div class="basemap-option" data-layer="satellite">
+                        <span class="preview satellite"></span>
+                        <span class="label">Satellite</span>
+                        <span class="check"><i class="fas fa-check"></i></span>
+                    </div>
+                    <div class="basemap-option" data-layer="grayscale">
+                        <span class="preview grayscale"></span>
+                        <span class="label">Noir &amp; Blanc</span>
+                        <span class="check"><i class="fas fa-check"></i></span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -732,7 +760,7 @@
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
 
     // ------------------------------------------------------------
-    // 4. GÉOLOCALISATION (alignée à droite)
+    // 4. GÉOLOCALISATION
     // ------------------------------------------------------------
     L.control.locate({
         position: 'topright',
@@ -1020,6 +1048,7 @@
         option.addEventListener('click', function(e) {
             e.stopPropagation();
             
+            // Désactiver toutes les options
             basemapOptions.forEach(opt => opt.classList.remove('active'));
             this.classList.add('active');
             
@@ -1027,12 +1056,15 @@
             const layer = basemaps[layerName];
             
             if (layer) {
+                // Retirer toutes les couches existantes
                 Object.values(basemaps).forEach(l => {
                     if (l._map) map.removeLayer(l);
                 });
+                // Ajouter la couche sélectionnée
                 layer.addTo(map);
             }
             
+            // Replier automatiquement le sélecteur
             isBasemapCollapsed = true;
             basemapControl.classList.add('collapsed');
         });
