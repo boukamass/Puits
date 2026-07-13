@@ -558,7 +558,6 @@
         <div class="stats">
             <div class="stat"><div class="num">10</div><div class="lbl">Étapes</div></div>
             <div class="stat"><div class="num">~180 km</div><div class="lbl">Distance</div></div>
-            <div class="stat"><div class="num">~4h30</div><div class="lbl">Roulage</div></div>
             <div class="stat"><div class="num">3</div><div class="lbl">Permis</div></div>
         </div>
     </header>
@@ -604,7 +603,7 @@
             <div class="sidebar-header" id="toggle-header">
                 <div class="header-content">
                     <h2>Feuille de route — RN1</h2>
-                    <p>🟢 Aller · 🔴 Retour (calculé sur la route)</p>
+                    <p>🟢 Aller · 🔴 Retour</p>
                 </div>
                 <button class="toggle-btn" id="toggle-btn">◀</button>
             </div>
@@ -684,15 +683,15 @@
     ];
 
     const legs = [
-        { dist: 31.8, time: 48, type: 'aller' },
-        { dist: 26.8, time: 40, type: 'aller' },
-        { dist: 1.6, time: 2, type: 'aller' },
-        { dist: 1.5, time: 2, type: 'aller' },
-        { dist: 42.0, time: 63, type: 'aller' },
-        { dist: 37.7, time: 57, type: 'retour' },
-        { dist: 8.0, time: 12, type: 'retour' },
-        { dist: 4.5, time: 7, type: 'retour' },
-        { dist: 27.9, time: 42, type: 'retour' }
+        { dist: 31.8, type: 'aller' },
+        { dist: 26.8, type: 'aller' },
+        { dist: 1.6, type: 'aller' },
+        { dist: 1.5, type: 'aller' },
+        { dist: 42.0, type: 'aller' },
+        { dist: 37.7, type: 'retour' },
+        { dist: 8.0, type: 'retour' },
+        { dist: 4.5, type: 'retour' },
+        { dist: 27.9, type: 'retour' }
     ];
 
     const colors = {
@@ -1091,7 +1090,7 @@
             const conn = document.createElement('div');
             conn.className = `leg-connector leg-${leg.type}`;
             const icon = leg.type === 'aller' ? '🟢' : '🔴';
-            conn.innerHTML = `<span class="dash"></span> <b>${leg.dist} km</b> · ${leg.time} min ${icon} <span class="dash" style="flex:1;"></span>`;
+            conn.innerHTML = `<span class="dash"></span> <b>${leg.dist} km</b> ${icon} <span class="dash" style="flex:1;"></span>`;
             list.appendChild(conn);
         }
     });
