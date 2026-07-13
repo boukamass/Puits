@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PLAN DE LOCALISATION ET ITINERAIRE VISITE MHC</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
+    <style>
+        /* --- Variables & Reset --- */
+        :root {
+            --navy: #0E1B2C;
+            --paper: #EEF2F5;
+            --paper-2: #FFFFFF;
+            --ink: #16232E;
+            --ink-soft: #5B6B7A;
+            --amber: #D98E04;
+            --amber-soft: #F6C15C;
+            --kkl: #1E8A7A;
+            --nanga: #3B5FA0;
+            --mayombe: #B3452F;
+            --mairie: #D98E04;
+            --line: #D6DEE5;
+            --aller: #2ECC71;
+            --retour: #E74C3C;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; height: 100%;
+            font-family: 'Inter', sans-serif;
+            background: var(--navy); color: var(--ink);
+        }
+        .app { display: flex; flex-direction: column; height: 100vh; }
+
+        /* --- Header --- */
+        header {
+            background: linear-gradient(135deg, #0E1B2C 0%, #1a2f4a 100%);
+            color: #fff;
+            padding: 10px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-bottom: 2px solid var(--amber);
+            z-index: 1000;
+            flex-shrink: 0;
+        }
+        .brand { display: flex; flex-direction: column; gap: 1px; }
+        .brand h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+        .brand .sub { font-size: 10px; color: #B9C6D3; margin-top: 0; }
+        .stats {
+            display: flex;
+            background: rgba(255,255,255,0.06);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat {
+            padding: 4px 12px;
+            text-align: center;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        .stat:last-child { border-right: none; }
+        .stat .num {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--amber-soft);
+            line-height: 1.1;
+        }
+        .stat .lbl {
+            font-size: 7px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9FB0BF;
+        }
+
+        /* --- Main layout --- */
+        .main { flex: 1; display: flex; min-height: 0; }
+        #map { flex: 1; position: relative; background: #dfe7ec; }
+        .sidebar {
+            width: 260px;
+            background: var(--paper);
+            border-left: 1px solid var(--line);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            transition: width 0.3s ease;
+        }
+        .sidebar.collapsed { width: 40px; min-width: 40px; }
+        .sidebar-header {
+            padding: 8px 12px 6px;
+            border-bottom: 1px solid var(--line);
+            background: var(--paper-2);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            min-height: 48px;
+        }
+        .sidebar-header .header-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .sidebar.collapsed .header-content { display: none; }
+        .sidebar-header h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            margin: 0;
+            color: var(--ink);
+        }
+        .sidebar-header p { margin: 0; font-size: 9px; color: var(--ink-soft); }
+        .sidebar-header .toggle-btn {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            color: var(--ink-soft);
+            padding: 0 4px;
+            flex-shrink: 0;
+        }
+        .sidebar-header .toggle-btn:hover { color: var(--amber); }
+        .sidebar-content {
+            flex: 1;
+            overflow: hidden;
+            transition: opacity 0.3s ease, max-height 0.3s ease;
+        }
+        .sidebar.collapsed .sidebar-content {
+            opacity: 0;
+            max-height: 0;
+            pointer-events: none;
+        }
+        .sidebar:not(.collapsed) .sidebar-content {
+            opacity: 1;
+            max-height: 1000px;
+        }
+
+        /* Legend */
+        .legend {
+            padding: 6px 12px 8px;
+            border-bottom: 1px solid var(--line);
+            background: var(--paper-2);
+            font-size: 8px;
+            flex-shrink: 0;
+            max-height: 140px;
+            overflow: hidden;
+        }
+        .legend h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 9px;
+            margin: 0 0 3px;
+            color: var(--ink);
+        }
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 2px;
+            color: var(--ink-soft);
+            font-size: 8px;
+        }
+        .legend-row:last-child {
+            margin-bottom: 0;
+        }
+        .legend-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            flex-shrink: 0;
+            border: 1.5px solid #fff;
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+        }
+        .legend-line {
+            width: 20px; height: 0;
+            border-top: 3px dashed;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .legend-zone {
+            width: 10px; height: 10px; border-radius: 50%;
+            flex-shrink: 0;
+            opacity: 0.4;
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+        .legend-rn1 {
+            width: 14px; height: 0;
+            border-top: 2px solid var(--amber);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .legend-user {
+            width: 10px; height: 10px;
+            flex-shrink: 0;
+            background: #1E90FF;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px #1E90FF;
+        }
+
+        /* Itinerary list */
+        .itinerary {
+            padding: 6px 10px 10px;
+            overflow-y: auto;
+            height: 100%;
+        }
+        .stop {
+            display: flex;
+            gap: 6px;
+            padding: 5px 6px;
+            border-radius: 6px;
+            margin-bottom: 2px;
+            background: var(--paper-2);
+            border: 1px solid var(--line);
+        }
+        .badge {
+            flex-shrink: 0;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+        .stop-body { flex: 1; min-width: 0; }
+        .stop-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--ink);
+            line-height: 1.2;
+        }
+        .stop-permit { font-size: 8px; color: var(--ink-soft); }
+        .leg-connector {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 8px;
+            color: var(--ink-soft);
+            padding: 1px 0 1px 16px;
+            margin-bottom: 2px;
+        }
+        .leg-connector .dash { flex: 0 0 8px; height: 1px; background: var(--line); }
+        .leg-connector b { font-weight: 600; font-size: 8px; }
+        .leg-aller b { color: var(--aller); }
+        .leg-retour b { color: var(--retour); }
+
+        /* --- Inset map --- */
+        .inset-wrap {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 150px;
+            height: 160px;
+            background: #dfe7ec;
+            border-radius: 6px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+            border: 2px solid var(--navy);
+            overflow: hidden;
+            z-index: 500;
+        }
+        .inset-label {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            background: var(--navy);
+            color: #fff;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 7px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 3px 0;
+            z-index: 600;
+            pointer-events: none;
+            border-bottom: 1px solid var(--amber);
+        }
+        #inset-map {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* --- Leaflet overrides --- */
+        .leaflet-popup-content-wrapper { border-radius: 6px; }
+        .leaflet-popup-content {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            margin: 6px 8px;
+        }
+        .popup-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+        .popup-meta { color: var(--ink-soft); font-size: 9px; line-height: 1.3; }
+        .popup-meta b { color: var(--ink); }
+
+        /* Marqueur des puits (losange) */
+        .stop-number-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            color: #fff;
+            font-size: 9px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(45deg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+            border: 2px solid #fff;
+            width: 22px; height: 22px;
+        }
+        .stop-number-icon span { transform: rotate(-45deg); }
+
+        /* Marqueur de la Mairie (plus grand, contour doré) */
+        .mairie-icon {
+            width: 28px; height: 28px;
+            border-color: #D98E04;
+            border-width: 3px;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .mairie-icon span { font-size: 11px; }
+
+        /* Tooltips */
+        .puit-tooltip {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 8px;
+            font-weight: 600;
+            background: rgba(14, 27, 44, 0.8);
+            color: #fff;
+            padding: 1px 5px;
+            border-radius: 4px;
+            border: 1px solid;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            white-space: nowrap;
+            pointer-events: none;
+        }
+        .mairie-tooltip {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 700;
+            background: #D98E04;
+            color: #0E1B2C;
+            padding: 2px 8px;
+            border-radius: 6px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        /* Label RN1 - taille réduite */
+        .rn1-label-carte {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 9px;
+            font-weight: 600;
+            color: #D98E04;
+            background: rgba(14, 27, 44, 0.7);
+            padding: 1px 8px;
+            border-radius: 10px;
+            border: 1.5px solid #D98E04;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            backdrop-filter: blur(3px);
+            white-space: nowrap;
+            pointer-events: none;
+            letter-spacing: 0.3px;
+        }
+
+        /* Masquer l'interface de routage et l'attribution */
+        .leaflet-routing-container { display: none !important; }
+        .leaflet-routing-collapsible { display: none !important; }
+        .leaflet-control-attribution { display: none !important; }
+
+        /* Style du contrôle de localisation (aligné à droite) */
+        .leaflet-control-locate {
+            position: absolute !important;
+            top: 12px !important;
+            right: 58px !important;
+            z-index: 1000 !important;
+        }
+        .leaflet-control-locate .leaflet-bar {
+            border-radius: 6px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+            border: 2px solid rgba(14, 27, 44, 0.15) !important;
+        }
+        .leaflet-control-locate .leaflet-bar a {
+            width: 38px !important;
+            height: 38px !important;
+            line-height: 38px !important;
+            font-size: 18px !important;
+            background: #fff !important;
+            color: #1E90FF !important;
+            border-radius: 4px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+        }
+        .leaflet-control-locate .leaflet-bar a:hover {
+            background: #f0f0f0 !important;
+            color: #0074D9 !important;
+        }
+        .leaflet-control-locate .leaflet-bar a.leaflet-locate-active {
+            background: #1E90FF !important;
+            color: #fff !important;
+            animation: pulse-locate 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-locate {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(30, 144, 255, 0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(30, 144, 255, 0); }
+        }
+
+        /* --- Contrôle de changement de base map (aligné à droite) --- */
+        .basemap-control {
+            position: absolute !important;
+            top: 12px !important;
+            right: 12px !important;
+            z-index: 1000 !important;
+            background: #fff !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3) !important;
+            border: 2px solid rgba(14, 27, 44, 0.15) !important;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            min-width: 38px;
+        }
+        .basemap-control.collapsed {
+            min-width: 38px;
+            max-width: 38px;
+        }
+        .basemap-control .basemap-toggle {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            color: var(--ink-soft);
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            padding: 0;
+            transition: background 0.2s;
+        }
+        .basemap-control .basemap-toggle:hover {
+            background: #f0f0f0;
+            color: var(--amber);
+        }
+        .basemap-control .basemap-options {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            padding: 0 8px;
+        }
+        .basemap-control:not(.collapsed) .basemap-options {
+            max-height: 300px;
+            padding: 8px 8px 10px 8px;
+        }
+        .basemap-control .basemap-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: 'Inter', sans-serif;
+            color: var(--ink);
+            transition: background 0.2s;
+            white-space: nowrap;
+            border: 2px solid transparent;
+        }
+        .basemap-control .basemap-option:hover {
+            background: #f0f0f0;
+        }
+        .basemap-control .basemap-option.active {
+            border-color: var(--amber);
+            background: #FFF8E7;
+        }
+        .basemap-control .basemap-option .preview {
+            width: 24px;
+            height: 16px;
+            border-radius: 2px;
+            flex-shrink: 0;
+            border: 1px solid #ddd;
+        }
+        .basemap-control .basemap-option .preview.osm {
+            background: #f0f0f0;
+        }
+        .basemap-control .basemap-option .preview.voyager {
+            background: #f5f5f0;
+        }
+        .basemap-control .basemap-option .preview.satellite {
+            background: linear-gradient(135deg, #3a7a5a, #6a9a7a);
+        }
+        .basemap-control .basemap-option .preview.grayscale {
+            background: #888;
+        }
+        .basemap-control .basemap-option .label {
+            font-size: 11px;
+        }
+
+        .basemap-control .basemap-option .check {
+            margin-left: auto;
+            color: var(--amber);
+            font-size: 12px;
+            display: none;
+        }
+        .basemap-control .basemap-option.active .check {
+            display: block;
+        }
+
+        /* Ajustement du zoom */
+        .leaflet-zoom-anim .leaflet-zoom-animated {
+            transition-duration: 0.8s !important;
+            transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1) !important;
+        }
+
+        @media (max-width: 820px) {
+            .sidebar { width: 220px; }
+            .sidebar.collapsed { width: 36px; min-width: 36px; }
+            .stats { display: none; }
+            .inset-wrap { width: 120px; height: 130px; }
+            .inset-label { font-size: 6px; padding: 2px 0; }
+            .leaflet-control-locate { right: 50px !important; }
+            .basemap-control { right: 10px !important; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header>
+        <div class="brand">
+            <h1>PLAN DE LOCALISATION ET ITINERAIRE VISITE MHC</h1>
+            <div class="sub">Pointe-Noire → RN1 → Nanga → Kouakouala → Mayombe → Retour</div>
+        </div>
+        <div class="stats">
+            <div class="stat"><div class="num">10</div><div class="lbl">Étapes</div></div>
+            <div class="stat"><div class="num">~180 km</div><div class="lbl">Distance</div></div>
+            <div class="stat"><div class="num">~4h30</div><div class="lbl">Roulage</div></div>
+            <div class="stat"><div class="num">3</div><div class="lbl">Permis</div></div>
+        </div>
+    </header>
+
+    <div class="main">
+        <div id="map">
+            <div class="inset-wrap">
+                <div class="inset-label">République du Congo · Zone d'étude</div>
+                <div id="inset-map"></div>
+            </div>
+        </div>
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header" id="toggle-header">
+                <div class="header-content">
+                    <h2>Feuille de route — RN1</h2>
+                    <p>🟢 Aller · 🔴 Retour (calculé sur la route)</p>
+                </div>
+                <button class="toggle-btn" id="toggle-btn">◀</button>
+            </div>
+            <div class="sidebar-content">
+                <div class="legend">
+                    <h3>Légende</h3>
+                    <div class="legend-row"><span class="legend-dot" style="background:var(--mairie);"></span> Mairie Centrale</div>
+                    <div class="legend-row"><span class="legend-dot" style="background:var(--nanga);"></span> Puits Nanga</div>
+                    <div class="legend-row"><span class="legend-dot" style="background:var(--kkl);"></span> Puits Kouakouala</div>
+                    <div class="legend-row"><span class="legend-dot" style="background:var(--mayombe);"></span> Puits Mayombe</div>
+                    <div class="legend-row"><span class="legend-line" style="border-color:var(--aller);"></span> Tracé Aller</div>
+                    <div class="legend-row"><span class="legend-line" style="border-color:var(--retour);"></span> Tracé Retour</div>
+                    <div class="legend-row"><span class="legend-rn1"></span> RN1</div>
+                    <div class="legend-row"><span class="legend-zone" style="background:var(--nanga);"></span> Emprise des permis</div>
+                    <div class="legend-row" style="margin-top:2px;"><span class="legend-user"></span> Ma position</div>
+                </div>
+                <div class="itinerary" id="itinerary-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script src="https://unpkg.com/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+
+<script>
+    // ------------------------------------------------------------
+    // 1. DÉFINITION DES POINTS
+    // ------------------------------------------------------------
+    const mairie = L.latLng(-4.798333, 11.846389);
+    const pf500 = L.latLng(-4.664331, 12.011181);
+    const pf200_kk = L.latLng(-4.668948, 12.190277);
+    const pf400_kk = L.latLng(-4.658380, 12.187954);
+    const pf100_kk = L.latLng(-4.656021, 12.178426);
+    const pfNiali = L.latLng(-4.395866, 12.075926);
+    const pf600 = L.latLng(-4.624292, 11.970703);
+    const pf200_n = L.latLng(-4.657900, 11.929519);
+    const pf100_n = L.latLng(-4.628900, 11.922833);
+
+    const rn1_vers_kk1 = L.latLng(-4.6243809, 12.0271535);
+    const rn1_vers_kk2 = L.latLng(-4.562838, 12.065514);
+    const rn1_vers_kk3 = L.latLng(-4.531517, 12.076837);
+    const rn1_vers_kk4 = L.latLng(-4.522846, 12.081849);
+    const retour_point1 = L.latLng(-4.369211, 12.138532);
+    const retour_point2 = L.latLng(-4.420424, 12.140921);
+    const retour_point3 = L.latLng(-4.624272, 12.027152);
+    const rn1_apres_pf100 = L.latLng(-4.620000, 11.900000);
+
+    // ---- ALLER ----
+    const allerWaypoints = [
+        mairie, pf500, rn1_vers_kk1, rn1_vers_kk2, rn1_vers_kk3,
+        rn1_vers_kk4, pf200_kk, pf400_kk, pf100_kk, rn1_vers_kk4, pfNiali
+    ];
+
+    // ---- RETOUR ----
+    const retourWaypoints = [
+        pfNiali, retour_point1, retour_point2, retour_point3,
+        pf600, pf200_n, pf100_n, rn1_apres_pf100, mairie
+    ];
+
+    // ------------------------------------------------------------
+    // 2. STOPS
+    // ------------------------------------------------------------
+    const stops = [
+        { n: 1, name: "Départ Mairie Centrale", permis: "Mairie", plateforme: "Départ Mairie Centrale", lat: -4.798333, lon: 11.846389, type: 'aller' },
+        { n: 2, name: "Permis Nanga", permis: "Nanga", plateforme: "PF-500", lat: -4.664331, lon: 12.011181, type: 'aller' },
+        { n: 3, name: "Permis Kouakouala", permis: "Kouakouala", plateforme: "PF-200", lat: -4.668948, lon: 12.190277, type: 'aller' },
+        { n: 4, name: "Permis Kouakouala", permis: "Kouakouala", plateforme: "PF-400", lat: -4.658380, lon: 12.187954, type: 'aller' },
+        { n: 5, name: "Permis Kouakouala", permis: "Kouakouala", plateforme: "PF-100", lat: -4.656021, lon: 12.178426, type: 'aller' },
+        { n: 6, name: "Permis Mayombe", permis: "Mayombe", plateforme: "PF-NIALI", lat: -4.395866, lon: 12.075926, type: 'aller' },
+        { n: 7, name: "Permis Nanga", permis: "Nanga", plateforme: "PF-600", lat: -4.624292, lon: 11.970703, type: 'retour' },
+        { n: 8, name: "Permis Nanga", permis: "Nanga", plateforme: "PF-200", lat: -4.657900, lon: 11.929519, type: 'retour' },
+        { n: 9, name: "Permis Nanga", permis: "Nanga", plateforme: "PF-100", lat: -4.628900, lon: 11.922833, type: 'retour' },
+        { n: 10, name: "Retour Mairie Centrale", permis: "Mairie", plateforme: "Retour Mairie Centrale", lat: -4.798333, lon: 11.846389, type: 'retour' }
+    ];
+
+    const legs = [
+        { dist: 31.8, time: 48, type: 'aller' },
+        { dist: 26.8, time: 40, type: 'aller' },
+        { dist: 1.6, time: 2, type: 'aller' },
+        { dist: 1.5, time: 2, type: 'aller' },
+        { dist: 42.0, time: 63, type: 'aller' },
+        { dist: 37.7, time: 57, type: 'retour' },
+        { dist: 8.0, time: 12, type: 'retour' },
+        { dist: 4.5, time: 7, type: 'retour' },
+        { dist: 27.9, time: 42, type: 'retour' }
+    ];
+
+    const colors = {
+        Mairie: "#D98E04",
+        Nanga: "#3B5FA0",
+        Kouakouala: "#1E8A7A",
+        Mayombe: "#B3452F"
+    };
+
+    const permitCircles = [
+        { name: "Nanga", color: colors.Nanga, center: [-4.645000, 11.970000], radius: 7000, labelOffset: [-0.065, -0.065] },
+        { name: "Kouakouala", color: colors.Kouakouala, center: [-4.660000, 12.185000], radius: 5000, labelOffset: [-0.048, -0.048] },
+        { name: "Mayombe", color: colors.Mayombe, center: [-4.395866, 12.075926], radius: 5000, labelOffset: [-0.048, -0.048] }
+    ];
+
+    // ------------------------------------------------------------
+    // 3. CARTE
+    // ------------------------------------------------------------
+    const map = L.map('map', { 
+        zoomControl: false,
+        attributionControl: false,
+        fadeAnimation: true,
+        zoomAnimation: true,
+        inertia: true,
+        inertiaDeceleration: 3000,
+        inertiaMaxSpeed: 1000
+    });
+
+    // Couches de base map
+    const layerOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: ''
+    });
+
+    const layerVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '',
+        subdomains: 'abcd'
+    });
+
+    const layerSatellite = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: ''
+    });
+
+    const layerGrayscale = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_noborder/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        attribution: '',
+        subdomains: 'abcd'
+    });
+
+    // Ajouter la couche par défaut
+    layerOSM.addTo(map);
+
+    // Stocker les couches pour le sélecteur
+    const basemaps = {
+        osm: layerOSM,
+        voyager: layerVoyager,
+        satellite: layerSatellite,
+        grayscale: layerGrayscale
+    };
+
+    const allPoints = stops.map(s => L.latLng(s.lat, s.lon));
+    const bounds = L.latLngBounds(allPoints);
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+
+    // ------------------------------------------------------------
+    // 4. GÉOLOCALISATION (alignée à droite)
+    // ------------------------------------------------------------
+    L.control.locate({
+        position: 'topright',
+        locateOptions: { 
+            enableHighAccuracy: true, 
+            timeout: 10000, 
+            watch: true 
+        },
+        icon: 'fa fa-location-dot',
+        iconLoading: 'fa fa-spinner fa-spin',
+        iconElementTag: 'i',
+        circleStyle: { 
+            color: '#1E90FF', 
+            fillColor: '#1E90FF', 
+            fillOpacity: 0.15, 
+            weight: 2, 
+            opacity: 0.6 
+        },
+        markerStyle: { 
+            color: '#1E90FF', 
+            fillColor: '#1E90FF', 
+            fillOpacity: 0.8, 
+            weight: 2, 
+            radius: 8 
+        },
+        follow: true,
+        stopFollowingOnDrag: true,
+        showPopup: true,
+        popupOptions: { 
+            className: 'locate-popup', 
+            content: '<b>📍 Ma position</b><br/>(cliquez pour arrêter le suivi)' 
+        },
+        strings: { 
+            title: 'Afficher ma position' 
+        }
+    }).addTo(map);
+
+    // ------------------------------------------------------------
+    // 5. ROUTAGE - LIGNES DISCONTINUES AVEC CONNEXION PARFAITE
+    // ------------------------------------------------------------
+    function setupRouter(waypoints, color) {
+        const router = L.Routing.control({
+            waypoints: waypoints,
+            routeWhileDragging: false,
+            show: false,
+            addWaypoints: false,
+            fitSelectedRoutes: false,
+            waypointIcon: false,
+            createMarker: function() { return null; },
+            lineOptions: {
+                styles: [{ 
+                    color: color, 
+                    weight: 3.5, 
+                    opacity: 0.85, 
+                    dashArray: '10, 6',
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }],
+                extendToWaypoints: true,
+                missingRouteTolerance: 0
+            },
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1',
+                profile: 'driving'
+            }),
+            formatter: new L.Routing.Formatter({ units: 'metric', roundingSensitivity: 1 })
+        }).addTo(map);
+
+        // Ajouter une surbrillance et renforcer les extrémités
+        router.on('routesfound', function(e) {
+            const route = e.routes[0];
+            if (!route) return;
+            const coords = route.coordinates.map(c => [c.lat, c.lng]);
+            
+            L.polyline(coords, {
+                color: color,
+                weight: 8,
+                opacity: 0.12,
+                lineCap: 'round',
+                lineJoin: 'round'
+            }).addTo(map);
+
+            if (coords.length > 1) {
+                L.circleMarker(coords[0], {
+                    radius: 4,
+                    color: color,
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 1
+                }).addTo(map);
+                
+                L.circleMarker(coords[coords.length - 1], {
+                    radius: 4,
+                    color: color,
+                    weight: 2,
+                    fillColor: color,
+                    fillOpacity: 1
+                }).addTo(map);
+            }
+        });
+
+        return router;
+    }
+
+    const routerAller = setupRouter(allerWaypoints, '#2ECC71');
+    const routerRetour = setupRouter(retourWaypoints, '#E74C3C');
+
+    // Forcer le recalcul
+    setTimeout(() => { routerAller.route(); routerRetour.route(); }, 100);
+    setTimeout(() => { routerAller.route(); routerRetour.route(); }, 300);
+    setTimeout(() => { routerAller.route(); routerRetour.route(); }, 600);
+    setTimeout(() => {
+        document.querySelectorAll('.leaflet-routing-container').forEach(el => el.style.display = 'none');
+    }, 800);
+
+    // ------------------------------------------------------------
+    // 6. LABELS RN1
+    // ------------------------------------------------------------
+    const rn1LabelPositions = [
+        { lat: -4.646847, lon: 11.979780 },
+        { lat: -4.591077, lon: 12.047989 },
+        { lat: -4.460756, lon: 12.119703 }
+    ];
+
+    rn1LabelPositions.forEach(pos => {
+        const icon = L.divIcon({
+            className: '',
+            html: `<div class="rn1-label-carte">RN1</div>`,
+            iconSize: [null, null],
+            iconAnchor: [0, 0]
+        });
+        L.marker([pos.lat, pos.lon], { icon, interactive: false }).addTo(map);
+    });
+
+    // ------------------------------------------------------------
+    // 7. ZONES DE PERMIS
+    // ------------------------------------------------------------
+    permitCircles.forEach(pc => {
+        L.circle([pc.center[0], pc.center[1]], {
+            radius: pc.radius,
+            color: pc.color,
+            weight: 2,
+            fillColor: pc.color,
+            fillOpacity: 0.25,
+            dashArray: '4, 4'
+        }).bindTooltip(pc.name, { sticky: true, direction: 'center' }).addTo(map);
+
+        const offsetLat = pc.labelOffset[0] || -0.065;
+        const offsetLon = pc.labelOffset[1] || -0.065;
+        const labelPos = L.latLng(pc.center[0] + offsetLat, pc.center[1] + offsetLon);
+        const labelIcon = L.divIcon({
+            className: 'permit-label',
+            html: `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:700;color:${pc.color};background:rgba(255,255,255,0.85);padding:2px 10px;border-radius:6px;border:2px solid ${pc.color};box-shadow:0 2px 6px rgba(0,0,0,0.2);backdrop-filter:blur(2px);white-space:nowrap;">${pc.name}</div>`,
+            iconSize: [null, null],
+            iconAnchor: [0, 0]
+        });
+        L.marker(labelPos, { icon: labelIcon, interactive: false }).addTo(map);
+    });
+
+    // ------------------------------------------------------------
+    // 8. MARQUEURS DES PUITS
+    // ------------------------------------------------------------
+    stops.forEach(s => {
+        const isPuit = s.plateforme.startsWith("PF");
+        const isMairie = (s.n === 1 || s.n === 10);
+        if (!isPuit && !isMairie) return;
+
+        const color = colors[s.permis];
+        let iconHtml, iconSize, iconAnchor, tooltipDirection, tooltipOffset, tooltipClass;
+
+        if (isMairie) {
+            iconHtml = `<div class="stop-number-icon mairie-icon" style="background:${color};"><span>${s.n}</span></div>`;
+            iconSize = [28, 28];
+            iconAnchor = [14, 22];
+            tooltipDirection = s.n === 1 ? 'right' : 'left';
+            tooltipOffset = s.n === 1 ? L.point(14, 0) : L.point(-14, 0);
+            tooltipClass = 'mairie-tooltip';
+        } else {
+            const borderColor = s.type === 'aller' ? '#2ECC71' : '#E74C3C';
+            iconHtml = `<div class="stop-number-icon" style="background:${color};border-color:${borderColor};"><span>${s.n}</span></div>`;
+            iconSize = [22, 22];
+            iconAnchor = [11, 17];
+            tooltipClass = 'puit-tooltip';
+
+            if (s.n === 3) { tooltipDirection = 'right'; tooltipOffset = L.point(12, 0); }
+            else if (s.n === 4) { tooltipDirection = 'left'; tooltipOffset = L.point(-12, 0); }
+            else if (s.n === 5) { tooltipDirection = 'bottom'; tooltipOffset = L.point(0, 12); }
+            else { tooltipDirection = 'right'; tooltipOffset = L.point(10, 0); }
+        }
+
+        const icon = L.divIcon({ className: '', html: iconHtml, iconSize: iconSize, iconAnchor: iconAnchor });
+        const marker = L.marker([s.lat, s.lon], { icon, riseOnHover: true }).addTo(map);
+
+        marker.bindTooltip(s.plateforme, {
+            permanent: true,
+            direction: tooltipDirection,
+            offset: tooltipOffset,
+            className: tooltipClass,
+            interactive: false
+        });
+
+        marker.bindPopup(`
+            <div class="popup-title">Étape ${s.n} — ${s.plateforme}</div>
+            <div class="popup-meta">
+                <b>Permis :</b> ${s.permis}<br/>
+                <b>Type :</b> ${s.type === 'aller' ? '🟢 Aller' : '🔴 Retour'}
+            </div>
+        `);
+    });
+
+    // ------------------------------------------------------------
+    // 9. CARTE INSET
+    // ------------------------------------------------------------
+    let insetMap;
+    function buildInsetMap() {
+        if (insetMap) return;
+        insetMap = L.map('inset-map', {
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+            touchZoom: false,
+            tap: false,
+            zoomSnap: 0.1
+        });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            maxZoom: 10,
+            subdomains: 'abcd',
+            attribution: ''
+        }).addTo(insetMap);
+
+        const congoBounds = L.latLngBounds([-5.15, 10.95], [3.75, 18.70]);
+        const zoneBounds = [[-4.85, 11.80], [-4.30, 12.30]];
+        L.rectangle(zoneBounds, { color: '#D98E04', weight: 2, fillColor: '#D98E04', fillOpacity: 0.45 }).addTo(insetMap);
+        L.marker([-4.62, 12.02], {
+            icon: L.divIcon({ className: '', html: '<div style="width:6px;height:6px;background:#D98E04;border:2px solid #16232E;border-radius:50%;"></div>', iconSize: [6, 6] })
+        }).addTo(insetMap);
+
+        function fitCountry() {
+            insetMap.invalidateSize();
+            insetMap.fitBounds(congoBounds, { padding: [3, 3] });
+        }
+        setTimeout(fitCountry, 50);
+        setTimeout(fitCountry, 300);
+        setTimeout(fitCountry, 700);
+    }
+    window.addEventListener('load', buildInsetMap);
+    setTimeout(buildInsetMap, 200);
+
+    // ------------------------------------------------------------
+    // 10. TOGGLE COLLAPSIBLE
+    // ------------------------------------------------------------
+    const toggleBtn = document.getElementById('toggle-btn');
+    const sidebar = document.getElementById('sidebar');
+    const toggleHeader = document.getElementById('toggle-header');
+    let isCollapsed = false;
+
+    function toggleSidebar() {
+        isCollapsed = !isCollapsed;
+        sidebar.classList.toggle('collapsed', isCollapsed);
+        toggleBtn.textContent = isCollapsed ? '▶' : '◀';
+    }
+    toggleHeader.addEventListener('click', toggleSidebar);
+
+    // ------------------------------------------------------------
+    // 11. SÉLECTEUR DE BASE MAP (collapsible)
+    // ------------------------------------------------------------
+    const basemapControl = document.getElementById('basemap-control');
+    const basemapToggle = document.getElementById('basemap-toggle');
+    const basemapOptions = document.querySelectorAll('.basemap-option');
+    let isBasemapCollapsed = true;
+
+    // Toggle du sélecteur
+    basemapToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        isBasemapCollapsed = !isBasemapCollapsed;
+        basemapControl.classList.toggle('collapsed', isBasemapCollapsed);
+    });
+
+    // Sélection d'une base map
+    basemapOptions.forEach(option => {
+        option.addEventListener('click', function(e) {
+            e.stopPropagation();
+            
+            basemapOptions.forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+            
+            const layerName = this.dataset.layer;
+            const layer = basemaps[layerName];
+            
+            if (layer) {
+                Object.values(basemaps).forEach(l => {
+                    if (l._map) map.removeLayer(l);
+                });
+                layer.addTo(map);
+            }
+            
+            isBasemapCollapsed = true;
+            basemapControl.classList.add('collapsed');
+        });
+    });
+
+    // ------------------------------------------------------------
+    // 12. SIDEBAR
+    // ------------------------------------------------------------
+    const list = document.getElementById('itinerary-list');
+    stops.forEach((s, i) => {
+        const color = colors[s.permis];
+        const row = document.createElement('div');
+        row.className = 'stop';
+        row.innerHTML = `
+            <div class="badge" style="background:${color}">${s.n}</div>
+            <div class="stop-body">
+                <div class="stop-name">${s.type === 'aller' ? '🟢' : '🔴'} ${s.plateforme}</div>
+                <div class="stop-permit">${s.permis}</div>
+            </div>
+        `;
+        list.appendChild(row);
+        if (i < legs.length) {
+            const leg = legs[i];
+            const conn = document.createElement('div');
+            conn.className = `leg-connector leg-${leg.type}`;
+            const icon = leg.type === 'aller' ? '🟢' : '🔴';
+            conn.innerHTML = `<span class="dash"></span> <b>${leg.dist} km</b> · ${leg.time} min ${icon} <span class="dash" style="flex:1;"></span>`;
+            list.appendChild(conn);
+        }
+    });
+</script>
+</body>
+</html>
